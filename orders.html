@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shara Light — Ordini</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <main class="app-shell" aria-labelledby="page-title">
+        <header class="app-header">
+            <a href="home.html" class="btn btn-ghost btn-icon" aria-label="Torna alla home">‹</a>
+            <div class="app-brand">
+                <span class="logo">📦</span>
+                <span id="page-title">Ordini</span>
+            </div>
+            <button type="button" id="logout-btn" class="btn btn-danger btn-sm">Logout</button>
+        </header>
+
+        <section class="app-content">
+            <div id="alert" class="alert alert-error hidden" role="alert"></div>
+
+            <div class="list-header">
+                <div>
+                    <h2 class="list-title">I tuoi ordini</h2>
+                    <p id="orders-count" class="list-subtitle"></p>
+                </div>
+                <button type="button" id="new-order-btn" class="btn btn-primary btn-lg">+ Nuovo Ordine</button>
+            </div>
+
+            <div id="orders-loading" class="loading-box">Caricamento ordini…</div>
+            <div id="orders-empty" class="empty-box hidden">Nessun ordine inserito.</div>
+            <div id="orders-list" class="orders-list"></div>
+        </section>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/orders.js"></script>
+</body>
+</html>

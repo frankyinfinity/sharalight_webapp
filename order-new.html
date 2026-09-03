@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shara Light — Nuovo Ordine</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <main class="app-shell order-shell" aria-labelledby="page-title">
+        <header class="app-header">
+            <a href="orders.html" class="btn btn-ghost btn-icon" aria-label="Annulla e torna agli ordini">‹</a>
+            <div class="app-brand">
+                <span class="logo">🛒</span>
+                <span id="page-title">Nuovo Ordine</span>
+            </div>
+            <span class="header-spacer"></span>
+        </header>
+
+        <section class="app-content">
+            <div id="alert" class="alert alert-error hidden" role="alert"></div>
+
+            <!-- Passo 1: consegna -->
+            <section class="panel">
+                <div class="panel-split">
+                    <span class="step-badge">1</span>
+                    <div>
+                        <h2 class="panel-title">Dati di consegna</h2>
+                        <p class="panel-sub">Ti consegniamo dove preferisci</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="order-address">Indirizzo <span class="req">*</span></label>
+                    <div class="input-icon">
+                        <span class="lead" aria-hidden="true">📍</span>
+                        <input type="text" id="order-address" name="address"
+                               placeholder="Via Roma 1, Milano" autocomplete="street-address" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="order-date">Data consegna <span class="req">*</span></label>
+                    <div class="input-icon">
+                        <span class="lead" aria-hidden="true">📅</span>
+                        <input type="date" id="order-date" name="order_date" required>
+                    </div>
+                    <div class="quick-dates" id="quick-dates">
+                        <button type="button" class="qd-chip" data-days="1">Domani</button>
+                        <button type="button" class="qd-chip" data-days="3">Tra 3 giorni</button>
+                        <button type="button" class="qd-chip" data-days="7">Tra 7 giorni</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Passo 2: prodotti -->
+            <section class="panel">
+                <div class="panel-split">
+                    <span class="step-badge">2</span>
+                    <div>
+                        <h2 class="panel-title">I tuoi prodotti</h2>
+                        <p class="panel-sub">Scegli i prodotti e le quantità</p>
+                    </div>
+                </div>
+
+                <div id="cart-list" class="cart-list"></div>
+
+                <div id="cart-empty" class="cart-empty">
+                    <span class="cart-empty-icon" aria-hidden="true">🛍️</span>
+                    <p>Il carrello è vuoto</p>
+                    <p class="cart-empty-hint">Aggiungi i prodotti che vuoi ordinare</p>
+                </div>
+
+                <button type="button" id="add-product-btn" class="btn btn-add">+ Aggiungi prodotto</button>
+            </section>
+        </section>
+
+        <!-- Barra inferiore fissa (stile app) -->
+        <footer class="bottom-bar">
+            <div class="bottom-total">
+                <span class="bottom-total-label">Totale</span>
+                <strong id="order-total">0</strong>
+            </div>
+            <button type="button" id="save-order-btn" class="btn btn-primary btn-lg">Salva Ordine</button>
+        </footer>
+
+        <!-- Bottom sheet: scelta prodotto + configurazione ingredienti -->
+        <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+        <div class="sheet" id="product-sheet" role="dialog" aria-modal="true" aria-label="Scegli un prodotto" aria-hidden="true">
+            <div class="sheet-handle"></div>
+
+            <!-- Vista 1: elenco prodotti -->
+            <div id="sheet-view-list">
+                <h3 class="sheet-title">Scegli un prodotto</h3>
+                <div class="sheet-list" id="product-sheet-list"></div>
+            </div>
+
+            <!-- Vista 2: configurazione ingredienti del prodotto scelto -->
+            <div id="sheet-view-config" hidden>
+                <div class="sheet-config-head">
+                    <button type="button" class="btn btn-ghost btn-icon" id="sheet-back-btn" aria-label="Torna alla lista">‹</button>
+                    <h3 class="sheet-title" id="sheet-config-title">Prodotto</h3>
+                </div>
+
+                <div class="sheet-config-body">
+                    <div class="sheet-qnt-row">
+                        <span class="sheet-qnt-label">Quantità</span>
+                        <div class="stepper">
+                            <button type="button" class="step-btn step-minus" id="sheet-qnt-minus" aria-label="Diminuisci">−</button>
+                            <input type="text" class="step-value" id="sheet-qnt-input" inputmode="decimal" value="1" aria-label="Quantità">
+                            <button type="button" class="step-btn step-plus" id="sheet-qnt-plus" aria-label="Aumenta">+</button>
+                        </div>
+                    </div>
+
+                    <p class="sheet-config-hint">Scegli la materia prima per ogni categoria</p>
+                    <div class="ing-list" id="sheet-ing-list"></div>
+                </div>
+
+                <div class="sheet-config-foot">
+                    <button type="button" id="sheet-add-btn" class="btn btn-primary btn-lg">+ Aggiungi al carrello</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/order-new.js"></script>
+</body>
+</html>

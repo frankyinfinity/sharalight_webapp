@@ -236,3 +236,853 @@ input.invalid {
         gap: 0;
     }
 }
+
+/* ============================================================
+   App shell (Home, Ordini, Nuovo Ordine) — stile "app"
+   ============================================================ */
+
+.app-shell {
+    width: 100%;
+    max-width: 640px;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+}
+
+.app-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.app-brand .logo {
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 0;
+}
+
+.header-spacer {
+    width: 40px;
+}
+
+.app-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+}
+
+/* Pulsante circolare "indietro" e versioni compatte dei pulsanti */
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btn-sm {
+    width: auto;
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-top: 0;
+    border-radius: 8px;
+}
+
+.btn-lg {
+    padding: 14px 18px;
+    font-size: 16px;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: #f4f5f9;
+}
+
+.btn-secondary {
+    background: #eef0f6;
+    color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #e0e4ee;
+}
+
+.app-header .btn-danger {
+    max-width: none;
+    margin: 0;
+    width: auto;
+}
+
+/* ---------- Home: benvenuto + griglia moduli ---------- */
+
+.welcome-box {
+    text-align: left;
+    padding: 4px 0 14px;
+}
+
+.welcome-box #welcome {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.app-shell .user-name {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--primary-dark);
+    margin-top: 4px;
+}
+
+.app-shell .user-email {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 18px 0 10px;
+}
+
+.modules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.module-btn {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+}
+
+.module-btn:hover {
+    border-color: var(--primary);
+    box-shadow: 0 8px 20px rgba(79, 109, 245, 0.16);
+    transform: translateY(-1px);
+}
+
+.module-btn:active {
+    transform: scale(0.985);
+}
+
+.module-btn .module-icon {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.module-btn .module-title {
+    font-weight: 700;
+    font-size: 15px;
+    margin-top: 10px;
+}
+
+.module-btn .module-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* ---------- Elenco ordini ---------- */
+
+.list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.list-title {
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.list-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.loading-box {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 32px 0;
+    font-size: 14px;
+}
+
+.empty-box {
+    text-align: center;
+    color: var(--text-muted);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    padding: 28px 16px;
+    font-size: 14px;
+    background: #fafbfd;
+}
+
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.order-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    background: #fff;
+}
+
+.order-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.order-progressive {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary-dark);
+}
+
+.order-card-body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 16px;
+    font-size: 13px;
+}
+
+.order-card-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.order-card-label {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.order-card-row span:last-child {
+    text-align: right;
+    word-break: break-word;
+}
+
+/* ---------- Badge stato ordine ---------- */
+
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-created {
+    background: #eef0f6;
+    color: #4b5563;
+}
+
+.badge-products-defined {
+    background: #fff4e0;
+    color: #9a6700;
+}
+
+.badge-products-allocated {
+    background: #e6f0ff;
+    color: #1d4ed8;
+}
+
+.badge-shipped {
+    background: #e8f7ee;
+    color: #116932;
+}
+
+/* ---------- Pannelli e form (stile app) ---------- */
+
+.panel {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.panel-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 12px;
+}
+
+.products-count {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.panel-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: -6px 0 12px;
+}
+
+.req {
+    color: var(--danger);
+}
+
+select {
+    width: 100%;
+    padding: 11px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 109, 245, 0.18);
+}
+
+select.invalid {
+    border-color: var(--danger);
+}
+
+/* ---------- Pannelli con step numerati ---------- */
+
+.panel-split {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.step-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+    box-shadow: 0 4px 10px rgba(79, 109, 245, 0.3);
+}
+
+.panel-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.panel-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Input con icona */
+.input-icon {
+    position: relative;
+}
+
+.input-icon .lead {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.input-icon input {
+    padding-left: 38px;
+}
+
+/* Chip data rapide */
+.quick-dates {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.qd-chip {
+    flex: 1;
+    padding: 9px 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.qd-chip:hover {
+    border-color: var(--primary);
+}
+
+.qd-chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* ---------- Carrello (prodotti selezionati) ---------- */
+
+.cart-list {
+    margin-bottom: 12px;
+}
+
+.cart-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #fff;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.cart-item.highlight {
+    border-color: var(--primary);
+    animation: cartPulse 0.7s ease;
+}
+
+@keyframes cartPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(79, 109, 245, 0.35); }
+    100% { box-shadow: 0 0 0 14px rgba(79, 109, 245, 0); }
+}
+
+.cart-item-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.cart-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.cart-item-name {
+    display: block;
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cart-item-meta {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.stepper {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fbfcfe;
+    flex-shrink: 0;
+}
+
+.step-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--primary-dark);
+}
+
+.step-btn:hover {
+    background: #eef0f6;
+}
+
+.step-value {
+    width: 48px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 0;
+    outline: none;
+    box-shadow: none;
+}
+
+.step-value:focus {
+    box-shadow: none;
+    border: none;
+}
+
+.cart-item-remove {
+    margin-left: 2px;
+    border: none;
+    background: transparent;
+    color: var(--danger);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.cart-item-remove:hover {
+    background: var(--error-bg);
+}
+
+.btn-add {
+    width: 100%;
+    margin-top: 2px;
+    border: 1px dashed var(--primary);
+    background: #f2f6ff;
+    color: var(--primary-dark);
+}
+
+.btn-add:hover:not(:disabled) {
+    background: #e5edff;
+    border-style: solid;
+}
+
+.cart-empty {
+    text-align: center;
+    padding: 20px 12px 24px;
+    color: var(--text);
+}
+
+.cart-empty-icon {
+    font-size: 40px;
+    display: block;
+}
+
+.cart-empty p {
+    font-weight: 700;
+    margin-top: 8px;
+}
+
+.cart-empty .cart-empty-hint {
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* ---------- Sheet vista 2: configurazione ingredienti ---------- */
+
+.sheet-config-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px 12px;
+}
+
+.sheet-config-head .sheet-title {
+    padding: 0;
+    flex: 1;
+}
+
+.sheet-config-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sheet-config-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: #fff;
+}
+
+.sheet-qnt-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.sheet-qnt-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.sheet-config-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 4px 0 12px;
+}
+
+.ing-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ing-row {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fbfcfe;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+}
+
+.ing-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ing-cat {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    flex-shrink: 0;
+}
+
+.ing-select {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    direction: rtl;
+}
+
+.ing-nested {
+    margin-top: 8px;
+    padding-left: 10px;
+    border-left: 2px solid #e3e8f5;
+}
+/* ---------- Bottom sheet (scelta prodotto) ---------- */
+
+.sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    opacity: 0;
+    transition: opacity 0.22s ease;
+    z-index: 60;
+}
+
+.sheet-backdrop.open {
+    opacity: 1;
+}
+
+.sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0 auto;
+    max-width: 640px;
+    max-height: 72vh;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.2);
+    transform: translateY(105%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 61;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sheet.open {
+    transform: translateY(0);
+}
+
+.sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    margin: 10px auto 4px;
+    flex-shrink: 0;
+}
+
+.sheet-title {
+    font-size: 16px;
+    font-weight: 800;
+    padding: 6px 20px 12px;
+}
+
+.sheet-list {
+    overflow-y: auto;
+    padding: 0 12px calc(18px + env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+}
+
+.sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.sheet-item:hover {
+    border-color: var(--primary);
+}
+
+.sheet-item.added {
+    background: #f2f6ff;
+    border-color: var(--primary);
+}
+
+.sheet-item-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.sheet-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.sheet-item-name {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.sheet-item-ingredients {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.3;
+}
+
+.sheet-item-add {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef0f6;
+    color: var(--text);
+    font-weight: 800;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.sheet-item.added .sheet-item-add {
+    background: var(--primary);
+    color: #fff;
+}
+
+/* ---------- Barra inferiore (totale + salva) ---------- */
+
+.bottom-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid var(--border);
+}
+
+.bottom-total {
+    display: flex;
+    flex-direction: column;
+    min-width: 96px;
+}
+
+.bottom-total-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.bottom-total strong {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary-dark);
+    line-height: 1.1;
+}
+
+.bottom-bar .btn {
+    flex: 1;
+    margin-top: 0;
+}

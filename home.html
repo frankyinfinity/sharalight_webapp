@@ -7,15 +7,27 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <main class="card card-home" aria-labelledby="welcome">
-        <div class="welcome-box">
-            <div class="welcome-icon">👋</div>
-            <h1 id="welcome">Benvenuto</h1>
-            <p id="user-name" class="user-name">Caricamento…</p>
-            <p id="user-email" class="user-email"></p>
-        </div>
+    <main class="app-shell" aria-labelledby="welcome">
+        <header class="app-header">
+            <div class="app-brand">
+                <span class="logo">💡</span>
+                <span>Shara Light</span>
+            </div>
+            <button type="button" id="logout-btn" class="btn btn-danger btn-sm">Logout</button>
+        </header>
 
-        <button type="button" id="logout-btn" class="btn btn-danger">Logout</button>
+        <section class="app-content">
+            <div class="welcome-box">
+                <h1 id="welcome">Ciao 👋</h1>
+                <p id="user-name" class="user-name">Caricamento…</p>
+                <p id="user-email" class="user-email"></p>
+            </div>
+
+            <h2 class="section-title">Moduli</h2>
+            <div class="modules-grid" id="modules-grid">
+                <!-- moduli renderizzati da js/home.js -->
+            </div>
+        </section>
     </main>
 
     <script src="js/api.js"></script>

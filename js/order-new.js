@@ -138,13 +138,20 @@ function renderCart() {
 function renderCartItem(item) {
     const product = productById(item.product_id);
     const icon = categoryIcon(product?.category_name);
+    const ingredients = ingredientNamesForItem(item);
+    const ingredientsLine = ingredients.length
+        ? `<span class="cart-item-ingredients">Ingredienti: ${esc(ingredients.join(', '))}</span>`
+        : '';
 
     return `
         <article class="cart-item" data-key="${item.key}">
-            <span class="cart-item-icon" aria-hidden="true">${icon}</span>
-            <div class="cart-item-info">
-                <span class="cart-item-name">${esc(product?.name || 'Prodotto')}</span>
-                <span class="cart-item-meta">${esc(product?.category_name || '')}${product?.unit_of_measure_symbol ? ' · ' + esc(product.unit_of_measure_symbol) : ''}</span>
+            <div class="cart-item-main" data-key="${item.key}">
+                <span class="cart-item-icon" aria-hidden="true">${icon}</span>
+                <div class="cart-item-info">
+                    <span class="cart-item-name">${esc(product?.name || 'Prodotto')}</span>
+                    <span class="cart-item-meta">${esc(product?.category_name || '')}${product?.unit_of_measure_symbol ? ' · ' + esc(product.unit_of_measure_symbol) : ''}</span>
+                    ${ingredientsLine}
+                </div>
             </div>
             <div class="stepper">
                 <button type="button" class="step-btn step-minus" data-key="${item.key}" aria-label="Diminuisci">−</button>
@@ -206,7 +213,13 @@ function openProductConfig(productId) {
 function goBackToProductList() {
     configProductId = null;
     configSelections = {};
-    document.getElementById('sheet-view-config').hidden = true;
+
+    const configEl = document.getElementById('sheet-view-config');
+    configEl.hidden = true;
+    delete configEl.dataset.editKey;
+    const addBtn = document.getElementById('sheet-add-btn');
+    if (addBtn) addBtn.textContent = '+ Aggiungi al carrello';
+
     document.getElementById('sheet-view-list').hidden = false;
     renderSheetProductList();
 }
@@ -219,7 +232,23 @@ function goBackToProductList() {
 function renderIngredientConfig() {
     const listEl = document.getElementById('sheet-ing-list');
     listEl.innerHTML = ingredientRowsHtml(configProductId, [configProductId], 0);
+    updateAddButtonState();
 }
+
+/**
+ * Abilita il pulsante "Aggiungi al carrello" solo se TUTTE le select
+ * (incluso l'annidamento semi-lavorato) hanno un valore selezionato.
+ */
+function updateAddButtonState() {
+    const btn = document.getElementById('sheet-add-btn');
+    if (!btn) return;
+
+    const selects = document.querySelectorAll('#sheet-ing-list .ing-select');
+    const allSelected = selects.length > 0 && Array.from(selects).every((sel) => sel.value !== '' && sel.value != null);
+
+    btn.disabled = !allSelected;
+}
+
 
 function ingredientRowsHtml(productId, excluded, depth) {
     if (depth > MAX_DEPTH) return '';
@@ -293,13 +322,25 @@ function addConfiguredProductToCart() {
     const qnt = parseQnt(document.getElementById('sheet-qnt-input').value);
     const finalQnt = round2(qnt > 0 ? qnt : 1);
     const selections = collectConfigSelections();
+    const configEl = document.getElementById('sheet-view-config');
+    const editKey = configEl.dataset.editKey ? Number(configEl.dataset.editKey) : null;
 
-    state.cart.push({
-        key: state.nextKey++,
-        product_id: configProductId,
-        qnt: finalQnt,
-        selections,
-    });
+    if (editKey !== null && editKey !== undefined) {
+        // Modalità modifica: aggiorna la riga esistente
+        const existing = itemByKey(editKey);
+        if (existing) {
+            existing.qnt = finalQnt;
+            existing.selections = selections;
+        }
+    } else {
+        // Modalità nuovo: aggiunge una riga al carrello
+        state.cart.push({
+            key: state.nextKey++,
+            product_id: configProductId,
+            qnt: finalQnt,
+            selections,
+        });
+    }
 
     renderCart();
     renderTotal();
@@ -344,6 +385,35 @@ function removeItem(key) {
     renderCart();
     renderTotal();
     persistDraft();
+}
+
+/**
+ * Riapre il pannello configurazione ingredienti per modificare una riga
+ * già presente nel carrello. Carica le selezioni e la quantità salvate,
+ * così l'utente può variare le materie prime. Al confermare la riga
+ * viene aggiornata (non duplicata).
+ */
+function editCartItem(key) {
+    const item = itemByKey(key);
+    if (!item) return;
+
+    configProductId = Number(item.product_id);
+    configSelections = { ...(item.selections || {}) };
+
+    const product = productById(item.product_id);
+    document.getElementById('sheet-config-title').textContent = product?.name || 'Prodotto';
+    document.getElementById('sheet-qnt-input').value = item.qnt;
+
+    renderIngredientConfig();
+
+    document.getElementById('sheet-view-list').hidden = true;
+    document.getElementById('sheet-view-config').hidden = false;
+    document.getElementById('sheet-add-btn').textContent = '✓ Conferma';
+
+    // Salva il key in modo che "Conferma" aggiorni la riga esistente
+    document.getElementById('sheet-view-config').dataset.editKey = String(key);
+
+    openSheet();
 }
 
 function highlightItem(key) {
@@ -397,6 +467,42 @@ function walkSelections(productId, parentQnt, parentUomId, excluded, depth, out,
             walkSelections(selectedProduct.id, total, recipe.unit_of_measure_id, [...excluded, selectedProduct.id], depth + 1, out, userSelections);
         }
     }
+}
+
+/**
+ * Restituisce i nomi delle materie prime "foglia" (prodotti senza ricetta)
+ * che compongono un prodotto, risolti a partire dalle selezioni indicate
+ * (se assenti usa il default automatico). Utile per mostrare in carrello
+ * un riepilogo leggibile degli ingredienti sceltti.
+ */
+function resolveIngredientNames(productId, userSelections, excluded, depth, acc) {
+    if (depth > MAX_DEPTH) return;
+
+    for (const recipe of recipesByProduct(productId)) {
+        let selectedProductId = null;
+
+        if (userSelections && userSelections[recipe.id] !== undefined) {
+            selectedProductId = Number(userSelections[recipe.id]);
+        } else {
+            selectedProductId = autoSelectForRecipe(recipe, excluded);
+        }
+
+        if (!selectedProductId) continue;
+
+        const selectedProduct = productById(selectedProductId);
+
+        if (selectedProduct && hasRecipe(selectedProduct)) {
+            resolveIngredientNames(selectedProduct.id, userSelections, [...excluded, selectedProduct.id], depth + 1, acc);
+        } else if (selectedProduct) {
+            if (!acc.includes(selectedProduct.name)) acc.push(selectedProduct.name);
+        }
+    }
+}
+
+function ingredientNamesForItem(item) {
+    const acc = [];
+    resolveIngredientNames(item.product_id, item.selections || {}, [Number(item.product_id)], 0, acc);
+    return acc;
 }
 // ============================================================
 // Validazione e salvataggio (un unico JSON a POST /api/orders)
@@ -537,7 +643,7 @@ function initEvents() {
     document.getElementById('sheet-ing-list').addEventListener('change', (event) => {
         if (event.target.classList.contains('ing-select')) {
             configSelections[Number(event.target.dataset.recipeId)] = Number(event.target.value);
-            renderIngredientConfig();
+            renderIngredientConfig(); // ricrea le select annidate + aggiorna stato pulsante
         }
     });
 
@@ -554,6 +660,10 @@ function initEvents() {
         if (plus) { changeQty(plus.dataset.key, +1); return; }
         const remove = event.target.closest('.cart-item-remove');
         if (remove) removeItem(remove.dataset.key);
+
+        // Click sulla riga (non su stepper/rimuovi) → modifica ingredienti
+        const main = event.target.closest('.cart-item-main');
+        if (main) editCartItem(main.dataset.key);
     });
     cart.addEventListener('change', (event) => {
         if (event.target.classList.contains('step-value')) commitQty(event.target);

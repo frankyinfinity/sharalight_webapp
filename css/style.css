@@ -719,6 +719,20 @@ select.invalid {
     flex-shrink: 0;
 }
 
+.cart-item-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    border-radius: 10px;
+}
+
+.cart-item-main:hover {
+    background: #f4f6fb;
+}
+
 .cart-item-info {
     flex: 1;
     min-width: 0;
@@ -738,6 +752,16 @@ select.invalid {
     font-size: 12px;
     color: var(--text-muted);
     margin-top: 1px;
+}
+
+.cart-item-ingredients {
+    display: block;
+    font-size: 11px;
+    color: var(--primary-dark);
+    margin-top: 3px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stepper {
@@ -842,6 +866,7 @@ select.invalid {
     align-items: center;
     gap: 8px;
     padding: 6px 16px 12px;
+    flex-shrink: 0;
 }
 
 .sheet-config-head .sheet-title {
@@ -851,6 +876,7 @@ select.invalid {
 
 .sheet-config-body {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 0 16px 16px;
     -webkit-overflow-scrolling: touch;
@@ -860,6 +886,7 @@ select.invalid {
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
     background: #fff;
+    flex-shrink: 0;
 }
 
 .sheet-qnt-row {
@@ -912,8 +939,6 @@ select.invalid {
 .ing-select {
     flex: 1;
     min-width: 0;
-    text-align: right;
-    direction: rtl;
 }
 
 .ing-nested {
@@ -972,9 +997,23 @@ select.invalid {
     font-size: 16px;
     font-weight: 800;
     padding: 6px 20px 12px;
+    flex-shrink: 0;
+}
+
+/* I due pannelli interni devono riempire la sheet e diventare
+   flex column affinché il loro contenuto scorrevole abbia un'altezza. */
+#sheet-view-list,
+#sheet-view-config {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .sheet-list {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 0 12px calc(18px + env(safe-area-inset-bottom));
     -webkit-overflow-scrolling: touch;

@@ -50,8 +50,18 @@ Gli stati interni nel pannello di amministrazione Laravel non sono modificati.
 
 1. Da **Home** → modulo **Ordini** si vede l'elenco degli ordini già fatti.
 2. **"Nuovo Ordine"** apre una pagina in stile app con due passi:
-   - **Dati di consegna**: indirizzo e data (con scorciatoie "Domani",
-     "Tra 3 giorni", "Tra 7 giorni");
+   - **Dati di consegna**: indirizzo **con autocomplete** e data (con
+     scorciatoie "Domani", "Tra 3 giorni", "Tra 7 giorni"). Digitando almeno
+     4 caratteri appaiono i suggerimenti di indirizzo (`GET /api/geocode`);
+     scegliendone uno, oltre all'indirizzo vengono salvate le **coordinate**
+     (lat/lng) e inviate con l'ordine. Se si riscrive l'indirizzo a mano le
+     coordinate vengono azzerate (inviate solo se coerenti con l'indirizzo).
+     Il servizio è **gratuito e senza chiave**: il backend interroga
+     **Photon** (geocoder open source su dati **OpenStreetMap**,
+     `photon.komoot.io`), che a differenza di Nominatim **consente
+     esplicitamente il search-as-you-type**; risposte in cache 24h e
+     degradazione silenziosa (inserimento manuale) se il servizio non è
+     raggiungibile. Dati © OpenStreetMap (ODbL).
    - **I tuoi prodotti**: si aggiungono i prodotti dal carrello (bottom
      sheet), con stepper per la quantità. La sheet si apre **sempre da
      zero**: elenco prodotti in cima e nessun residuo (titolo, quantità,
@@ -69,9 +79,11 @@ Gli stati interni nel pannello di amministrazione Laravel non sono modificati.
    semi-lavorati annidati e le conversioni U.M.).
 5. Tutta la composizione avviene **in locale** (bozza salvata in
    `localStorage`, chiave `shara_light_order_draft`): nessuna chiamata
-   intermedia al server.
+   intermedia al server (fuorché l'autocomplete degli indirizzi, che passa
+   dal backend).
 6. Al salvataggio viene inviato **un unico JSON** a `POST /api/orders`
-   (dati consegna + prodotti + dettagli ingredienti calcolati). Il backend
+   (dati consegna + coordinate opzionali `lat`/`lng` + prodotti + dettagli
+   ingredienti calcolati). Il backend
    crea l'ordine direttamente nello stato **`products_defined`**
    ("Prodotti Definiti").
 

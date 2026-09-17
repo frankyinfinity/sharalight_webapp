@@ -35,7 +35,9 @@
                     <div class="input-icon">
                         <span class="lead" aria-hidden="true">📍</span>
                         <input type="text" id="order-address" name="address"
-                               placeholder="Via Roma 1, Milano" autocomplete="street-address" required>
+                               placeholder="Via Roma 1, Milano" autocomplete="off"
+                               autocapitalize="off" spellcheck="false" required>
+                        <div id="address-suggest" class="addr-suggest" role="listbox" aria-label="Suggerimenti indirizzo" hidden></div>
                     </div>
                 </div>
 

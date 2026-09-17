@@ -26,6 +26,8 @@ const MAX_DEPTH = 5;
 const state = {
     address: '',
     order_date: '',
+    lat: null,       // coordinate dell'ultimo suggerimento scelto (null se manuale)
+    lng: null,
     cart: [],        // { key, product_id, qnt, selections: { recipe_id: product_id } }
     nextKey: 1,
 };
@@ -82,6 +84,79 @@ function convertQnt(quantity, fromId, toId) {
 }
 
 // ============================================================
+// Autocomplete indirizzi (via backend → provider Photon/OSM)
+// ============================================================
+
+const SUGGEST_MIN_CHARS = 4;  // la stessa soglia validata dal backend
+const SUGGEST_DEBOUNCE_MS = 350;
+
+let suggestAbort = null;   // AbortController della richiesta in corso
+let suggestTimer = null;   // timer del debounce
+
+/**
+ * Chiama GET /api/geocode (il provider esterno è contattato solo dal
+ * backend, che gestisce cache e fallback) e riempie la tendina dei
+ * suggerimenti. Degradazione silenziosa: se l'API non risponde o non trova
+ * nulla, la tendina resta chiusa e l'inserimento resta manuale.
+ */
+async function requestAddressSuggestions() {
+    const query = document.getElementById('order-address').value.trim();
+
+    hideAddressSuggestions();
+
+    if (query.length < SUGGEST_MIN_CHARS) return;
+
+    if (suggestAbort) suggestAbort.abort();
+    if (suggestTimer) clearTimeout(suggestTimer);
+
+    suggestTimer = setTimeout(async () => {
+        suggestAbort = new AbortController();
+        try {
+            const data = await apiRequest(`/geocode?q=${encodeURIComponent(query)}&limit=5`, { auth: true, signal: suggestAbort.signal });
+            const results = Array.isArray(data.results) ? data.results : [];
+            if (results.length > 0) renderAddressSuggestions(results);
+        } catch (error) {
+            if (error.name !== 'AbortError') { /* servizio non disponibile: resta la digitazione manuale */ }
+        }
+    }, SUGGEST_DEBOUNCE_MS);
+}
+
+function renderAddressSuggestions(results) {
+    const box = document.getElementById('address-suggest');
+    box.innerHTML = results.map((r) => `
+        <button type="button" class="addr-option" data-lat="${esc(r.lat)}" data-lng="${esc(r.lng)}">
+            <span class="addr-option-label">${esc(r.label)}</span>
+            ${r.city || r.country ? `<span class="addr-option-meta">${esc([r.postcode, r.city, r.country].filter(Boolean).join(', '))}</span>` : ''}
+        </button>
+    `).join('');
+    box.hidden = false;
+}
+
+function hideAddressSuggestions() {
+    const box = document.getElementById('address-suggest');
+    if (box) box.hidden = true;
+    if (suggestAbort) { suggestAbort.abort(); suggestAbort = null; }
+    if (suggestTimer) { clearTimeout(suggestTimer); suggestTimer = null; }
+}
+
+/**
+ * Sceglie un suggerimento: l'indirizzo diventa l'etichetta del provider e le
+ * coordinate decimali vengono salvate in state (poi nel payload dell'ordine).
+ */
+function pickAddressSuggestion(event) {
+    const option = event.target.closest('.addr-option');
+    if (!option) return;
+
+    const addressInput = document.getElementById('order-address');
+    addressInput.value = option.querySelector('.addr-option-label').textContent;
+    state.address = addressInput.value.trim();
+    state.lat = Number(option.dataset.lat);
+    state.lng = Number(option.dataset.lng);
+    persistDraft();
+    hideAddressSuggestions();
+}
+
+// ============================================================
 // Persistenza bozza locale
 // ============================================================
 
@@ -89,6 +164,8 @@ function persistDraft() {
     if (!localStorageAvailable()) return;
     const draft = {
         address: state.address,
+        lat: state.lat,
+        lng: state.lng,
         order_date: state.order_date,
         cart: state.cart.map((it) => ({ key: it.key, product_id: it.product_id, qnt: it.qnt, selections: { ...it.selections } })),
         nextKey: state.nextKey,
@@ -103,6 +180,10 @@ function loadDraft() {
         if (!raw) return;
         const draft = JSON.parse(raw);
         state.address = draft.address || '';
+        const validCoordinates = Number.isFinite(draft.lat) && Math.abs(draft.lat) <= 90
+            && Number.isFinite(draft.lng) && Math.abs(draft.lng) <= 180;
+        state.lat = validCoordinates ? draft.lat : null;
+        state.lng = validCoordinates ? draft.lng : null;
         state.order_date = draft.order_date || '';
         state.nextKey = draft.nextKey || 1;
         state.cart = (draft.cart || []).map((it) => {
@@ -624,6 +705,8 @@ function buildPayload() {
 
     return {
         address,
+        lat: address === state.address.trim() ? state.lat : null,
+        lng: address === state.address.trim() ? state.lng : null,
         order_date: orderDate,
         products: state.cart.map((item) => {
             const product = productById(item.product_id);
@@ -776,8 +859,21 @@ function initEvents() {
     // Dati consegna
     document.getElementById('order-address').addEventListener('input', (event) => {
         state.address = event.target.value;
+        // L'indirizzo è stato modificato: le coordinate precedenti non sono più
+        // affidabili finché l'utente non sceglie di nuovo un suggerimento
+        state.lat = null;
+        state.lng = null;
+        requestAddressSuggestions();
         persistDraft();
     });
+    document.getElementById('order-address').addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') hideAddressSuggestions();
+    });
+    document.getElementById('address-suggest').addEventListener('mousedown', pickAddressSuggestion);
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.input-icon')) hideAddressSuggestions();
+    });
+    window.addEventListener('blur', hideAddressSuggestions);
     document.getElementById('order-date').addEventListener('input', (event) => {
         state.order_date = event.target.value;
         renderQuickDates();

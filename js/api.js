@@ -35,7 +35,7 @@ function clearToken() {
  * @param {boolean} [options.auth]  true = invia il token salvato
  * @returns {Promise<object>} Dati JSON della risposta
  */
-async function apiRequest(path, { method = 'GET', body = null, auth = false } = {}) {
+async function apiRequest(path, { method = 'GET', body = null, auth = false, signal = null } = {}) {
     const headers = { 'Accept': 'application/json' };
 
     if (body) {
@@ -57,6 +57,7 @@ async function apiRequest(path, { method = 'GET', body = null, auth = false } = 
             method,
             headers,
             body: body ? JSON.stringify(body) : undefined,
+            signal,
         });
     } catch (networkError) {
         throw new Error('Impossibile contattare il server. Verifica che il backend sia avviato.');

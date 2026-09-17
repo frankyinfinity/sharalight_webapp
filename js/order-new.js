@@ -5,20 +5,22 @@
  *  1. Scarica il catalogo da GET /api/orders/catalog.
  *  2. L'utente compone l'ordine TUTTO IN LOCALE (bozza in localStorage):
  *     - sceglie prodotti e quantità;
- *     - per ogni prodotto apre un pannello "ingredienti" (una select per
- *       categoria, come nel backend) e sceglie la materia prima.
- *       I semi-lavorati mostrano le select annidate.
+ *     - per ogni prodotto apre un pannello "ingredienti" con una lista di
+ *       checkbox per categoria (scelta singola, come la select del backend)
+ *       e sceglie la materia prima.
+ *       I semi-lavorati mostrano le liste annidate.
  *  3. Il salvataggio finale invia UN UNICO JSON a POST /api/orders.
  *     Il backend crea l'ordine già nello stato "Prodotti Definiti".
+ *
+ * Nota: la bottom sheet viene SEMPRE aperta da zero (resetSheet()): nessun
+ * residuo (titolo, quantità, gruppi ingredienti, pulsante) tra due aperture.
+ * Anche l'elenco prodotti parte neutro: nessun prodotto è spuntato o
+ * evidenziato per il solo fatto di essere già nel carrello, così lo stesso
+ * prodotto può essere aggiunto più volte con ingredienti diversi.
  */
 
 const DRAFT_KEY = 'shara_light_order_draft';
 const MAX_DEPTH = 5;
-
-const CATEGORY_ICONS = {
-    'Candela': '🕯️', 'Cera': '🧴', 'Stoppino': '🧵', 'Barattolo': '🫙',
-    'Tappo': '🔘', 'Aromi': '🌸', 'Busta': '🎀',
-};
 
 // ---- Stato locale (bozza) ----
 const state = {
@@ -55,9 +57,15 @@ const recipesByProduct = (productId) => CATALOG.recipes.filter((r) => r.product_
 const productsByCategory = (categoryId) => CATALOG.products.filter((p) => p.product_category_id === Number(categoryId));
 const hasRecipe = (product) => product && (product.type === 'semi_finished' || product.type === 'finished');
 
-function categoryIcon(name) {
-    const key = Object.keys(CATEGORY_ICONS).find((k) => String(name ?? '').toLowerCase() === k.toLowerCase());
-    return key ? CATEGORY_ICONS[key] : '📦';
+/**
+ * Sottotitolo compatto di un prodotto: categoria + unità di misura.
+ * Sostituisce l'icona emoji della categoria, mantenendo l'informazione.
+ */
+function productMetaLabel(product) {
+    const parts = [];
+    if (product?.category_name) parts.push(product.category_name);
+    if (product?.unit_of_measure_symbol) parts.push(product.unit_of_measure_symbol);
+    return parts.join(' · ');
 }
 
 function localStorageAvailable() {
@@ -137,7 +145,6 @@ function renderCart() {
 
 function renderCartItem(item) {
     const product = productById(item.product_id);
-    const icon = categoryIcon(product?.category_name);
     const ingredients = ingredientNamesForItem(item);
     const ingredientsLine = ingredients.length
         ? `<span class="cart-item-ingredients">Ingredienti: ${esc(ingredients.join(', '))}</span>`
@@ -146,10 +153,9 @@ function renderCartItem(item) {
     return `
         <article class="cart-item" data-key="${item.key}">
             <div class="cart-item-main" data-key="${item.key}">
-                <span class="cart-item-icon" aria-hidden="true">${icon}</span>
                 <div class="cart-item-info">
                     <span class="cart-item-name">${esc(product?.name || 'Prodotto')}</span>
-                    <span class="cart-item-meta">${esc(product?.category_name || '')}${product?.unit_of_measure_symbol ? ' · ' + esc(product.unit_of_measure_symbol) : ''}</span>
+                    <span class="cart-item-meta">${esc(productMetaLabel(product))}</span>
                     ${ingredientsLine}
                 </div>
             </div>
@@ -180,54 +186,120 @@ function addDays(days) { const d = new Date(); d.setDate(d.getDate() + days); re
 
 // ---- Sheet: vista 1 (elenco prodotti) ----
 
+/**
+ * Elenco prodotti della sheet (vista 1).
+ *
+ * TUTTI i prodotti sono resi allo stesso modo, sempre NON selezionati:
+ * nessuna spunta "✓" né evidenziazione per i prodotti già presenti nel
+ * carrello. Lo stesso prodotto può così essere aggiunto più volte con
+ * ingredienti diversi, senza che la lista suggerisca una scelta già fatta.
+ */
 function renderSheetProductList() {
     const listEl = document.getElementById('product-sheet-list');
-    const inCart = (id) => state.cart.some((it) => Number(it.product_id) === Number(id));
 
     listEl.innerHTML = orderableProducts().map((p) => `
-        <button type="button" class="sheet-item ${inCart(p.id) ? 'added' : ''}" data-product-id="${p.id}">
-            <span class="sheet-item-icon" aria-hidden="true">${categoryIcon(p.category_name)}</span>
+        <button type="button" class="sheet-item" data-product-id="${p.id}">
             <span class="sheet-item-body">
                 <span class="sheet-item-name">${esc(p.name)}</span>
+                <span class="sheet-item-meta">${esc(productMetaLabel(p))}</span>
             </span>
-            <span class="sheet-item-add" aria-hidden="true">${inCart(p.id) ? '✓' : '+'}</span>
+            <span class="sheet-item-add" aria-hidden="true">+</span>
         </button>
     `).join('');
 }
 // ---- Sheet: vista 2 (configurazione ingredienti) ----
 
-function openProductConfig(productId) {
+/**
+ * Mostra la vista 2 (ingredienti + quantità) per un prodotto.
+ *
+ * @param {number|string} productId
+ * @param {object} [options]
+ * @param {object} [options.selections] Scelte già presenti { recipe_id: product_id }
+ * @param {number|string} [options.qnt] Quantità iniziale (default 1)
+ * @param {number|string|null} [options.editKey] Key della riga di carrello da
+ *        aggiornare (modalità modifica); null/assente = nuova riga
+ */
+function showProductConfig(productId, { selections = {}, qnt = 1, editKey = null } = {}) {
     configProductId = Number(productId);
-    configSelections = {};
+    configSelections = { ...selections };
 
     const product = productById(productId);
     document.getElementById('sheet-config-title').textContent = product?.name || 'Prodotto';
-    document.getElementById('sheet-qnt-input').value = 1;
 
-    renderIngredientConfig();
+    const qntInput = document.getElementById('sheet-qnt-input');
+    const initialQnt = parseQnt(qnt);
+    qntInput.value = initialQnt > 0 ? round2(initialQnt) : 1;
 
-    document.getElementById('sheet-view-list').hidden = true;
-    document.getElementById('sheet-view-config').hidden = false;
-}
-
-function goBackToProductList() {
-    configProductId = null;
-    configSelections = {};
+    renderIngredientConfig();   // ricrea i gruppi + aggiorna lo stato del pulsante
 
     const configEl = document.getElementById('sheet-view-config');
-    configEl.hidden = true;
-    delete configEl.dataset.editKey;
     const addBtn = document.getElementById('sheet-add-btn');
-    if (addBtn) addBtn.textContent = '+ Aggiungi al carrello';
+    if (editKey !== null && editKey !== undefined) {
+        // Modalità modifica: "Conferma" aggiorna la riga esistente
+        configEl.dataset.editKey = String(editKey);
+        addBtn.textContent = '✓ Conferma';
+    } else {
+        delete configEl.dataset.editKey;
+        addBtn.textContent = '+ Aggiungi al carrello';
+    }
 
-    document.getElementById('sheet-view-list').hidden = false;
-    renderSheetProductList();
+    const bodyEl = configEl.querySelector('.sheet-config-body');
+    if (bodyEl) bodyEl.scrollTop = 0;
+
+    document.getElementById('sheet-view-list').hidden = true;
+    configEl.hidden = false;
+}
+
+/** Nuova configurazione dalla vista 1: nessuna selezione pregressa. */
+function openProductConfig(productId) {
+    showProductConfig(productId);
 }
 
 /**
- * Renderizza le righe "ingrediente" (una select per categoria) in modo
- * ricorsivo: se la materia prima scelta è un semi-lavorato, mostra le
- * select annidate per le sue ricette.
+ * Riporta la sheet allo stato iniziale: vista 1 con l'elenco prodotti e
+ * nessun residuo della configurazione precedente (titolo, quantità, gruppi
+ * ingredienti renderizzati, pulsante di conferma, modalità modifica,
+ * posizione di scorrimento). Usata all'apertura della sheet e dal pulsante
+ * "torna alla lista", così il pannello non riusa mai contenuti vecchi.
+ */
+function resetSheet() {
+    configProductId = null;
+    configSelections = {};
+
+    const sheet = document.getElementById('product-sheet');
+    const listView = document.getElementById('sheet-view-list');
+    const configEl = document.getElementById('sheet-view-config');
+
+    // Vista 2: azzera i residui della configurazione precedente
+    document.getElementById('sheet-config-title').textContent = 'Prodotto';
+    document.getElementById('sheet-qnt-input').value = 1;
+    document.getElementById('sheet-ing-list').innerHTML = '';
+    delete configEl.dataset.editKey;
+
+    const addBtn = document.getElementById('sheet-add-btn');
+    if (addBtn) {
+        addBtn.textContent = '+ Aggiungi al carrello';
+        addBtn.disabled = true;   // nessun gruppo renderizzato = niente da confermare
+    }
+
+    configEl.hidden = true;
+    listView.hidden = false;
+    renderSheetProductList();
+
+    // Scorrimento in cima (sheet, viste e contenitori scorrevoli)
+    sheet.scrollTop = 0;
+    listView.scrollTop = 0;
+    configEl.scrollTop = 0;
+    const listEl = document.getElementById('product-sheet-list');
+    if (listEl) listEl.scrollTop = 0;
+    const bodyEl = configEl.querySelector('.sheet-config-body');
+    if (bodyEl) bodyEl.scrollTop = 0;
+}
+
+/**
+ * Renderizza i gruppi "ingrediente" (una lista di checkbox per categoria) in
+ * modo ricorsivo: se la materia prima scelta è un semi-lavorato, mostra le
+ * liste annidate per le sue ricette.
  */
 function renderIngredientConfig() {
     const listEl = document.getElementById('sheet-ing-list');
@@ -236,15 +308,16 @@ function renderIngredientConfig() {
 }
 
 /**
- * Abilita il pulsante "Aggiungi al carrello" solo se TUTTE le select
- * (incluso l'annidamento semi-lavorato) hanno un valore selezionato.
+ * Abilita il pulsante "Aggiungi al carrello" solo se OGNI categoria
+ * (incluso l'annidamento semi-lavorato) ha una materia prima spuntata.
  */
 function updateAddButtonState() {
     const btn = document.getElementById('sheet-add-btn');
     if (!btn) return;
 
-    const selects = document.querySelectorAll('#sheet-ing-list .ing-select');
-    const allSelected = selects.length > 0 && Array.from(selects).every((sel) => sel.value !== '' && sel.value != null);
+    const groups = document.querySelectorAll('#sheet-ing-list .ing-row[data-recipe-id]');
+    const allSelected = groups.length > 0
+        && Array.from(groups).every((group) => group.querySelector('.ing-check:checked') !== null);
 
     btn.disabled = !allSelected;
 }
@@ -259,9 +332,10 @@ function ingredientRowsHtml(productId, excluded, depth) {
             .filter((p) => !excluded.includes(p.id))
             .sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
-        const options = available
-            .map((p) => `<option value="${p.id}" ${Number(selectedId) === Number(p.id) ? 'selected' : ''}>${esc(p.name)}</option>`)
-            .join('');
+        const titleId = `ing-cat-${recipe.id}`;
+        const options = available.length
+            ? available.map((p) => ingredientOptionHtml(recipe, p, selectedId)).join('')
+            : '<p class="ing-empty">Nessuna materia prima disponibile</p>';
 
         const selectedProduct = productById(selectedId);
         let nested = '';
@@ -270,15 +344,36 @@ function ingredientRowsHtml(productId, excluded, depth) {
         }
 
         return `
-            <div class="ing-row" data-depth="${depth}">
+            <div class="ing-row" data-depth="${depth}" data-recipe-id="${recipe.id}">
                 <div class="ing-row-top">
-                    <span class="ing-cat">${esc(recipe.category_name)}</span>
-                    <select class="ing-select" data-recipe-id="${recipe.id}">${options}</select>
+                    <span class="ing-cat" id="${titleId}">${esc(recipe.category_name)}</span>
+                    <span class="ing-cat-count">${available.length === 1 ? '1 opzione' : `${available.length} opzioni`}</span>
+                </div>
+                <div class="ing-options" role="group" aria-labelledby="${titleId}">
+                    ${options}
                 </div>
                 ${nested}
             </div>
         `;
     }).join('');
+}
+
+/**
+ * Una voce della lista ingredienti: checkbox (stilizzata in CSS) + nome della
+ * materia prima (senza unità di misura). La scelta è singola per categoria, come
+ * nella select usata in precedenza: la lista viene ri-renderizzata a ogni
+ * cambiamento, quindi resta spuntata solo la scelta corrente (o il default
+ * automatico della ricetta).
+ */
+function ingredientOptionHtml(recipe, product, selectedId) {
+    const checked = Number(selectedId) === Number(product.id);
+
+    return `
+        <label class="ing-option ${checked ? 'selected' : ''}">
+            <input type="checkbox" class="ing-check" data-recipe-id="${recipe.id}" value="${product.id}" ${checked ? 'checked' : ''}>
+            <span class="ing-option-name">${esc(product.name)}</span>
+        </label>
+    `;
 }
 
 /**
@@ -308,12 +403,13 @@ function autoSelectForRecipe(recipe, excludedIds) {
 }
 
 /**
- * Raccoglie le scelte utente dalla vista config (tutti i select).
+ * Raccoglie le scelte utente dalla vista config (una checkbox spuntata per
+ * categoria).
  */
 function collectConfigSelections() {
     const result = {};
-    document.querySelectorAll('#sheet-ing-list .ing-select').forEach((sel) => {
-        result[Number(sel.dataset.recipeId)] = Number(sel.value);
+    document.querySelectorAll('#sheet-ing-list .ing-check:checked').forEach((check) => {
+        result[Number(check.dataset.recipeId)] = Number(check.value);
     });
     return result;
 }
@@ -389,31 +485,23 @@ function removeItem(key) {
 
 /**
  * Riapre il pannello configurazione ingredienti per modificare una riga
- * già presente nel carrello. Carica le selezioni e la quantità salvate,
- * così l'utente può variare le materie prime. Al confermare la riga
- * viene aggiornata (non duplicata).
+ * già presente nel carrello. La sheet viene aperta pulita e poi portata
+ * sulla vista ingredienti con le selezioni e la quantità salvate, così
+ * l'utente può variare le materie prime. Al confermare la riga viene
+ * aggiornata (non duplicata).
  */
 function editCartItem(key) {
     const item = itemByKey(key);
     if (!item) return;
 
-    configProductId = Number(item.product_id);
-    configSelections = { ...(item.selections || {}) };
-
-    const product = productById(item.product_id);
-    document.getElementById('sheet-config-title').textContent = product?.name || 'Prodotto';
-    document.getElementById('sheet-qnt-input').value = item.qnt;
-
-    renderIngredientConfig();
-
-    document.getElementById('sheet-view-list').hidden = true;
-    document.getElementById('sheet-view-config').hidden = false;
-    document.getElementById('sheet-add-btn').textContent = '✓ Conferma';
-
-    // Salva il key in modo che "Conferma" aggiorni la riga esistente
-    document.getElementById('sheet-view-config').dataset.editKey = String(key);
-
+    // 1) Apre la sheet con stato pulito (vista 1)...
     openSheet();
+    // 2) ...poi mostra la configurazione della riga, in modalità modifica
+    showProductConfig(item.product_id, {
+        selections: item.selections,
+        qnt: item.qnt,
+        editKey: key,
+    });
 }
 
 function highlightItem(key) {
@@ -591,8 +679,13 @@ async function saveOrder() {
 // Sheet open / close
 // ============================================================
 
+/**
+ * Apre la bottom sheet. Chiama sempre resetSheet(): il pannello che esce
+ * parte da zero (vista elenco prodotti), senza residui dell'apertura
+ * precedente.
+ */
 function openSheet() {
-    goBackToProductList();
+    resetSheet();
     const sheet = document.getElementById('product-sheet');
     const backdrop = document.getElementById('sheet-backdrop');
     sheet.classList.add('open');
@@ -639,16 +732,27 @@ function initEvents() {
         event.target.value = round2(v > 0 ? v : 1);
     });
 
-    // Vista 2: cambio select → aggiorna annidamenti semi-lavorati
+    // Vista 2: spunta/rimuove una materia prima → aggiorna gli annidamenti
     document.getElementById('sheet-ing-list').addEventListener('change', (event) => {
-        if (event.target.classList.contains('ing-select')) {
-            configSelections[Number(event.target.dataset.recipeId)] = Number(event.target.value);
-            renderIngredientConfig(); // ricrea le select annidate + aggiorna stato pulsante
+        const check = event.target.closest('.ing-check');
+        if (!check) return;
+
+        const row = check.closest('.ing-row');
+        const recipeId = Number(row.dataset.recipeId);
+
+        if (check.checked) {
+            // Scelta singola per categoria: la selezione precedente viene sostituita
+            configSelections[recipeId] = Number(check.value);
+        } else if (configSelections[recipeId] === undefined) {
+            // La scelta è obbligatoria: il "deseleziona" conferma la voce corrente
+            configSelections[recipeId] = Number(check.value);
         }
+
+        renderIngredientConfig(); // ricrea le liste annidate + aggiorna stato pulsante
     });
 
-    // Vista 2: torna indietro / aggiungi al carrello
-    document.getElementById('sheet-back-btn').addEventListener('click', goBackToProductList);
+    // Vista 2: torna indietro (sheet ripulita) / aggiungi al carrello
+    document.getElementById('sheet-back-btn').addEventListener('click', resetSheet);
     document.getElementById('sheet-add-btn').addEventListener('click', addConfiguredProductToCart);
 
     // Carrello

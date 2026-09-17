@@ -10,8 +10,8 @@ del backend Laravel presente in `../backend`.
 | Login            | `index.html`       | Accesso con email e password                    |
 | Registrazione    | `register.html`    | Creazione account (nome, cognome, email, password) |
 | Home (riservata) | `home.html`        | Benvenuto + griglia **Moduli** (ciascun modulo è una tessera; per aggiungerne di nuovi estendi `MODULES` in `js/home.js`) |
-| Ordini           | `orders.html`      | Elenco degli ordini dell'utente + pulsante "Nuovo Ordine" |
-| Nuovo Ordine     | `order-new.html`   | Creazione ordine in stile app: si scelgono solo prodotti e quantità; gli ingredienti sono calcolati in automatico al salvataggio. Bozza in `localStorage`, invio di un unico JSON |
+| Ordini           | `orders.html`      | Elenco degli ordini dell'utente con badge di stato "cliente" + pulsante "Nuovo Ordine" |
+| Nuovo Ordine     | `order-new.html`   | Creazione ordine in stile app: prodotti, quantità e scelta delle materie prime (una per categoria, tramite **lista con checkbox**). Bozza in `localStorage`, invio di un unico JSON |
 
 ## API utilizzate (backend Laravel, autenticazione Sanctum token)
 
@@ -28,6 +28,24 @@ del backend Laravel presente in `../backend`.
 Il token è salvato in `localStorage` (chiave `shara_light_token`) e inviato
 nell'header `Authorization: Bearer <token>`.
 
+### Stati dell'ordine mostrati al cliente
+
+La webapp traduce gli stati "interni" del backend in 3 stati più semplici
+(un solo colore di badge per gruppo), definiti in `STATE_LABELS` /
+`STATE_CLASSES` in `js/orders.js`:
+
+| Stato backend      | Badge mostrato nella webapp | Classe CSS          |
+|--------------------|-----------------------------|---------------------|
+| `created`          | **In lavorazione**          | `badge-in-progress` |
+| `products_defined` | **In lavorazione**          | `badge-in-progress` |
+| `products_allocated` | **In lavorazione**        | `badge-in-progress` |
+| `in_shipment`      | **In spedizione**           | `badge-in-shipment` |
+| `shipped`          | **Spedito**                 | `badge-shipped`     |
+
+L'etichetta interna ricevuta dall'API (`state_label`: "Creato", "Prodotti
+Definiti", …) resta disponibile come **tooltip** sul badge (attributo `title`).
+Gli stati interni nel pannello di amministrazione Laravel non sono modificati.
+
 ### Creazione ordine (modulo Ordini)
 
 1. Da **Home** → modulo **Ordini** si vede l'elenco degli ordini già fatti.
@@ -35,14 +53,24 @@ nell'header `Authorization: Bearer <token>`.
    - **Dati di consegna**: indirizzo e data (con scorciatoie "Domani",
      "Tra 3 giorni", "Tra 7 giorni");
    - **I tuoi prodotti**: si aggiungono i prodotti dal carrello (bottom
-     sheet), con stepper per la quantità.
-3. Al cliente non vengono chiesti gli ingredienti: al salvataggio la webapp
-   **calcola automaticamente** per ogni ricetta il prodotto di default e le
-   quantità derivate (inclusi i semi-lavorati annidati e le conversioni U.M.).
-4. Tutta la composizione avviene **in locale** (bozza salvata in
+     sheet), con stepper per la quantità. La sheet si apre **sempre da
+     zero**: elenco prodotti in cima e nessun residuo (titolo, quantità,
+     ingredienti, stato del pulsante) della configurazione precedente.
+     Nell'elenco **nessun prodotto è spuntato o evidenziato** per il solo
+     fatto di essere già nel carrello: i prodotti sono tutti non selezionati,
+     quindi lo stesso prodotto può essere aggiunto più volte con ingredienti
+     diversi.
+3. Per ogni prodotto si aprono gli **ingredienti**: una **lista con checkbox**
+   per ogni categoria (scelta singola, come la select del backend). La materia
+   prima è preselezionata in automatico (prodotto abilitato nella ricetta
+   oppure primo disponibile della categoria); se la materia prima scelta è un
+   **semi-lavorato**, vengono mostrate le liste annidate delle sue ricette.
+4. Al salvataggio la webapp calcola le quantità derivate (inclusi i
+   semi-lavorati annidati e le conversioni U.M.).
+5. Tutta la composizione avviene **in locale** (bozza salvata in
    `localStorage`, chiave `shara_light_order_draft`): nessuna chiamata
    intermedia al server.
-5. Al salvataggio viene inviato **un unico JSON** a `POST /api/orders`
+6. Al salvataggio viene inviato **un unico JSON** a `POST /api/orders`
    (dati consegna + prodotti + dettagli ingredienti calcolati). Il backend
    crea l'ordine direttamente nello stato **`products_defined`**
    ("Prodotti Definiti").

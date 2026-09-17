@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shara Light — Anteprima ingredienti (dev)</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!--
+        File di ANTEPRIMA (sviluppo): NON fa parte della webapp.
+        Serve solo a vedere come rendono i nuovi componenti con css/style.css.
+        Puoi cancellarlo quando non ti serve più.
+    -->
+    <main class="app-shell order-shell">
+        <header class="app-header">
+            <div class="app-brand">
+                <span id="page-title">Anteprima — Nuovo Ordine</span>
+            </div>
+            <span class="header-spacer"></span>
+        </header>
+
+        <section class="app-content">
+            <section class="panel">
+                <h2 class="panel-title">Badge di stato (vista cliente)</h2>
+                <p class="panel-sub">created / products_defined / products_allocated → In lavorazione · in_shipment → In spedizione · shipped → Spedito</p>
+                <div class="order-card-head" style="justify-content:flex-start;gap:10px;flex-wrap:wrap">
+                    <span class="badge badge-in-progress" title="Creato">In lavorazione</span>
+                    <span class="badge badge-in-progress" title="Prodotti Definiti">In lavorazione</span>
+                    <span class="badge badge-in-progress" title="Prodotti Allocati">In lavorazione</span>
+                    <span class="badge badge-in-shipment" title="In Spedizione">In spedizione</span>
+                    <span class="badge badge-shipped">Spedito</span>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2 class="panel-title">Elenco prodotti (sheet)</h2>
+                <p class="panel-sub">Niente più icone: nome + categoria · unità di misura</p>
+
+                <div class="sheet-list">
+                    <button type="button" class="sheet-item added">
+                        <span class="sheet-item-body">
+                            <span class="sheet-item-name">Candela Vaniglia</span>
+                            <span class="sheet-item-meta">Candela · PZ</span>
+                        </span>
+                        <span class="sheet-item-add" aria-hidden="true">✓</span>
+                    </button>
+                    <button type="button" class="sheet-item">
+                        <span class="sheet-item-body">
+                            <span class="sheet-item-name">Miscela Cera Base</span>
+                            <span class="sheet-item-meta">Cera · KG</span>
+                        </span>
+                        <span class="sheet-item-add" aria-hidden="true">+</span>
+                    </button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2 class="panel-title">Configurazione ingredienti</h2>
+                <p class="sheet-config-hint">Scegli una materia prima per ogni categoria</p>
+
+                <div class="ing-list">
+                    <div class="ing-row" data-depth="0">
+                        <div class="ing-row-top">
+                            <span class="ing-cat" id="ing-cat-1">Cera</span>
+                            <span class="ing-cat-count">1 opzione</span>
+                        </div>
+                        <div class="ing-options" role="group" aria-labelledby="ing-cat-1">
+                            <label class="ing-option selected">
+                                <input type="checkbox" class="ing-check" value="10" checked>
+                                <span class="ing-option-name">Cera di Soia</span>
+                            </label>
+                        </div>
+                        <div class="ing-nested">
+                            <div class="ing-row" data-depth="1">
+                                <div class="ing-row-top">
+                                    <span class="ing-cat" id="ing-cat-2">Cera Vergine</span>
+                                    <span class="ing-cat-count">2 opzioni</span>
+                                </div>
+                                <div class="ing-options" role="group" aria-labelledby="ing-cat-2">
+                                    <label class="ing-option selected">
+                                        <input type="checkbox" class="ing-check" value="11" checked>
+                                        <span class="ing-option-name">Cera di Cocco</span>
+                                    </label>
+                                    <label class="ing-option">
+                                        <input type="checkbox" class="ing-check" value="12">
+                                        <span class="ing-option-name">Cera d'Api</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ing-row" data-depth="0">
+                        <div class="ing-row-top">
+                            <span class="ing-cat" id="ing-cat-3">Aromi</span>
+                            <span class="ing-cat-count">3 opzioni</span>
+                        </div>
+                        <div class="ing-options" role="group" aria-labelledby="ing-cat-3">
+                            <label class="ing-option">
+                                <input type="checkbox" class="ing-check" value="20">
+                                <span class="ing-option-name">Aroma Bergamotto</span>
+                            </label>
+                            <label class="ing-option selected">
+                                <input type="checkbox" class="ing-check" value="21" checked>
+                                <span class="ing-option-name">Aroma Lavanda Francese</span>
+                            </label>
+                            <label class="ing-option">
+                                <input type="checkbox" class="ing-check" value="22">
+                                <span class="ing-option-name">Aroma Vaniglia Bourbon</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="ing-row" data-depth="0">
+                        <div class="ing-row-top">
+                            <span class="ing-cat" id="ing-cat-4">Stoppino</span>
+                            <span class="ing-cat-count">0 opzioni</span>
+                        </div>
+                        <div class="ing-options" role="group" aria-labelledby="ing-cat-4">
+                            <p class="ing-empty">Nessuna materia prima disponibile</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sheet-config-foot">
+                    <button type="button" class="btn btn-primary btn-lg" disabled>+ Aggiungi al carrello</button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2 class="panel-title">Righe del carrello</h2>
+                <div class="cart-list">
+                    <article class="cart-item">
+                        <div class="cart-item-main">
+                            <div class="cart-item-info">
+                                <span class="cart-item-name">Candela Vaniglia</span>
+                                <span class="cart-item-meta">Candela · PZ</span>
+                                <span class="cart-item-ingredients">Ingredienti: Cera di Cocco, Stoppino Cotone, Aroma Lavanda Francese</span>
+                            </div>
+                        </div>
+                        <div class="stepper">
+                            <button type="button" class="step-btn step-minus" aria-label="Diminuisci">−</button>
+                            <input type="text" class="step-value" value="12" aria-label="Quantità">
+                            <button type="button" class="step-btn step-plus" aria-label="Aumenta">+</button>
+                        </div>
+                        <button type="button" class="cart-item-remove" aria-label="Rimuovi">✕</button>
+                    </article>
+                </div>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

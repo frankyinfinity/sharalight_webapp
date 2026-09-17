@@ -5,11 +5,30 @@
  * - Pulsante "Nuovo Ordine" → pagina di creazione.
  */
 
-// Etichette degli stati miniati per i badge
+/**
+ * Stati "interni" dell'ordine cliente (backend) raggruppati in 3 stati
+ * mostrati al cliente:
+ *   created / products_defined / products_allocated → "In lavorazione"
+ *   in_shipment                                     → "In spedizione"
+ *   shipped                                         → "Spedito"
+ *
+ * Nota: `state_label` restituito dall'API è l'etichetta interna
+ * ("Creato", "Prodotti Definiti", …) e viene usata solo come tooltip.
+ */
+const STATE_LABELS = {
+    created: 'In lavorazione',
+    products_defined: 'In lavorazione',
+    products_allocated: 'In lavorazione',
+    in_shipment: 'In spedizione',
+    shipped: 'Spedito',
+};
+
+// Colore del badge per ciascuno stato (un colore per gruppo)
 const STATE_CLASSES = {
-    created: 'created',
-    products_defined: 'products-defined',
-    products_allocated: 'products-allocated',
+    created: 'in-progress',
+    products_defined: 'in-progress',
+    products_allocated: 'in-progress',
+    in_shipment: 'in-shipment',
     shipped: 'shipped',
 };
 
@@ -64,13 +83,17 @@ async function loadOrders() {
 }
 
 function renderOrderCard(order) {
-    const stateClass = STATE_CLASSES[order.state] || '';
+    const stateClass = STATE_CLASSES[order.state] || 'neutral';
+    const stateLabel = STATE_LABELS[order.state] || order.state_label || order.state || '';
+    const stateTitle = order.state_label && order.state_label !== stateLabel
+        ? ` title="${escapeHtml(order.state_label)}"`
+        : '';
 
     return `
         <article class="order-card">
             <div class="order-card-head">
                 <strong class="order-progressive">#${escapeHtml(order.progressive)}</strong>
-                <span class="badge badge-${stateClass}">${escapeHtml(order.state_label)}</span>
+                <span class="badge badge-${stateClass}"${stateTitle}>${escapeHtml(stateLabel)}</span>
             </div>
             <div class="order-card-body">
                 <div class="order-card-row">

@@ -28,7 +28,7 @@ const state = {
     order_date: '',
     lat: null,       // coordinate dell'ultimo suggerimento scelto (null se manuale)
     lng: null,
-    cart: [],        // { key, product_id, qnt, selections: { recipe_id: product_id } }
+    cart: [],        // { key, product_id, qnt, price, selections: { recipe_id: product_id } }
     nextKey: 1,
 };
 
@@ -45,6 +45,8 @@ let CATALOG = null;
 const esc = (value) => String(value ?? '')
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+
+const fmtEur = (n) => fmt(round2(n), 2) + ' €';
 
 const round4 = (n) => Math.round(n * 10000) / 10000;
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -167,7 +169,7 @@ function persistDraft() {
         lat: state.lat,
         lng: state.lng,
         order_date: state.order_date,
-        cart: state.cart.map((it) => ({ key: it.key, product_id: it.product_id, qnt: it.qnt, selections: { ...it.selections } })),
+        cart: state.cart.map((it) => ({ key: it.key, product_id: it.product_id, qnt: it.qnt, price: it.price ?? null, selections: { ...it.selections } })),
         nextKey: state.nextKey,
     };
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch (_) { /* ok */ }
@@ -188,7 +190,7 @@ function loadDraft() {
         state.nextKey = draft.nextKey || 1;
         state.cart = (draft.cart || []).map((it) => {
             if (!productById(it.product_id)) return null;
-            return { key: it.key, product_id: Number(it.product_id), qnt: Math.max(1, parseQnt(it.qnt) || 1), selections: { ...(it.selections || {}) } };
+            return { key: it.key, product_id: Number(it.product_id), qnt: Math.max(1, parseQnt(it.qnt) || 1), price: it.price ?? null, selections: { ...(it.selections || {}) } };
         }).filter(Boolean);
     } catch (_) { /* bozza corrotta: si riparte da zero */ }
 }
@@ -231,6 +233,20 @@ function renderCartItem(item) {
         ? `<span class="cart-item-ingredients">Ingredienti: ${esc(ingredients.join(', '))}</span>`
         : '';
 
+    // Prezzo riga: (prezzo candela + ingredienti scelti) × quantità
+    const qnt = parseQnt(item.qnt) || 0;
+    const ingredientsTotal = ingredientsTotalForItem(item);
+    const unitPrice = unitPriceForItem(item);
+    let priceLine = '';
+
+    if (unitPrice !== null) {
+        const basePrice = round2(unitPrice - ingredientsTotal);
+        const unitLabel = ingredientsTotal > 0
+            ? `(${fmtEur(basePrice)} + ${fmtEur(ingredientsTotal)})`
+            : fmtEur(basePrice);
+        priceLine = `<span class="cart-item-price">${esc(unitLabel)} × ${esc(fmt(qnt))} = <strong>${esc(fmtEur(unitPrice * qnt))}</strong></span>`;
+    }
+
     return `
         <article class="cart-item" data-key="${item.key}">
             <div class="cart-item-main" data-key="${item.key}">
@@ -238,6 +254,7 @@ function renderCartItem(item) {
                     <span class="cart-item-name">${esc(product?.name || 'Prodotto')}</span>
                     <span class="cart-item-meta">${esc(productMetaLabel(product))}</span>
                     ${ingredientsLine}
+                    ${priceLine}
                 </div>
             </div>
             <div class="stepper">
@@ -253,7 +270,23 @@ function renderCartItem(item) {
 function renderTotal() {
     const total = state.cart.reduce((sum, item) => sum + parseQnt(item.qnt), 0);
     const allPieces = state.cart.length > 0 && state.cart.every((item) => Number(productById(item.product_id)?.unit_of_measure_id) === 1);
-    document.getElementById('order-total').textContent = allPieces ? `${fmt(total, 2)} PZ` : fmt(total, 2);
+    const qntText = allPieces ? `${fmt(total, 2)} PZ` : fmt(total, 2);
+
+    // Totale economico: somma di (prezzo candela + ingredienti scelti) × quantità
+    const totalPrice = state.cart.reduce((sum, item) => {
+        const unitPrice = unitPriceForItem(item);
+        return unitPrice === null ? sum : sum + unitPrice * parseQnt(item.qnt);
+    }, 0);
+
+    const totalEl = document.getElementById('order-total');
+    if (totalPrice > 0) {
+        totalEl.textContent = fmtEur(totalPrice);
+        document.getElementById('order-total-qnt').textContent = qntText;
+        document.getElementById('order-total-qnt').classList.remove('hidden');
+    } else {
+        totalEl.textContent = qntText;
+        document.getElementById('order-total-qnt').classList.add('hidden');
+    }
 }
 
 function renderQuickDates() {
@@ -278,15 +311,21 @@ function addDays(days) { const d = new Date(); d.setDate(d.getDate() + days); re
 function renderSheetProductList() {
     const listEl = document.getElementById('product-sheet-list');
 
-    listEl.innerHTML = orderableProducts().map((p) => `
+    listEl.innerHTML = orderableProducts().map((p) => {
+        const priceLabel = (p.price !== null && p.price !== undefined)
+            ? `<span class="sheet-item-price">${esc(fmtEur(Number(p.price)))}</span>`
+            : '';
+
+        return `
         <button type="button" class="sheet-item" data-product-id="${p.id}">
             <span class="sheet-item-body">
                 <span class="sheet-item-name">${esc(p.name)}</span>
                 <span class="sheet-item-meta">${esc(productMetaLabel(p))}</span>
+                ${priceLabel}
             </span>
             <span class="sheet-item-add" aria-hidden="true">+</span>
         </button>
-    `).join('');
+    `; }).join('');
 }
 // ---- Sheet: vista 2 (configurazione ingredienti) ----
 
@@ -355,6 +394,11 @@ function resetSheet() {
     document.getElementById('sheet-config-title').textContent = 'Prodotto';
     document.getElementById('sheet-qnt-input').value = 1;
     document.getElementById('sheet-ing-list').innerHTML = '';
+    const priceLineEl = document.getElementById('sheet-price-line');
+    if (priceLineEl) {
+        priceLineEl.hidden = true;
+        priceLineEl.innerHTML = '';
+    }
     delete configEl.dataset.editKey;
 
     const addBtn = document.getElementById('sheet-add-btn');
@@ -386,6 +430,60 @@ function renderIngredientConfig() {
     const listEl = document.getElementById('sheet-ing-list');
     listEl.innerHTML = ingredientRowsHtml(configProductId, [configProductId], 0);
     updateAddButtonState();
+    renderSheetPrice();
+}
+
+/**
+ * Somma dei prezzi delle materie prime scelte nella configurazione corrente
+ * (solo prodotti senza ricetta, come nel riepilogo "Ingredienti" del carrello).
+ */
+function configIngredientsTotal() {
+    // Le selezioni correnti si leggono dal DOM: così vengono conteggiati anche
+    // gli ingredienti preselezionati di default (mostrati come spuntati).
+    const selections = collectConfigSelections();
+    const seen = new Set();
+    let total = 0;
+
+    Object.values(selections).forEach((productId) => {
+        const product = productById(productId);
+        if (!product || hasRecipe(product)) return;
+        if (seen.has(product.id)) return;
+        seen.add(product.id);
+
+        if (product.price !== null && product.price !== undefined) {
+            total += Number(product.price);
+        }
+    });
+
+    return round2(total);
+}
+
+/**
+ * Riga prezzo della configurazione:
+ * (prezzo candela + ingredienti scelti) × quantità.
+ */
+function renderSheetPrice() {
+    const el = document.getElementById('sheet-price-line');
+    if (!el) return;
+
+    const product = configProductId !== null ? productById(configProductId) : null;
+    const basePrice = product?.price ?? null;
+    const ingredientsTotal = configIngredientsTotal();
+    const qnt = parseQnt(document.getElementById('sheet-qnt-input').value) || 0;
+
+    if ((basePrice === null || basePrice === undefined) && ingredientsTotal <= 0) {
+        el.hidden = true;
+        el.innerHTML = '';
+        return;
+    }
+
+    const unitPrice = round2(Number(basePrice || 0) + ingredientsTotal);
+    const unitLabel = ingredientsTotal > 0
+        ? `(${fmtEur(Number(basePrice || 0))} + ${fmtEur(ingredientsTotal)})`
+        : fmtEur(unitPrice);
+
+    el.hidden = false;
+    el.innerHTML = `${esc(unitLabel)} × ${esc(fmt(qnt))} = <strong>${esc(fmtEur(unitPrice * qnt))}</strong>`;
 }
 
 /**
@@ -441,18 +539,24 @@ function ingredientRowsHtml(productId, excluded, depth) {
 
 /**
  * Una voce della lista ingredienti: checkbox (stilizzata in CSS) + nome della
- * materia prima (senza unità di misura). La scelta è singola per categoria, come
- * nella select usata in precedenza: la lista viene ri-renderizzata a ogni
- * cambiamento, quindi resta spuntata solo la scelta corrente (o il default
- * automatico della ricetta).
+ * materia prima + prezzo fisso di listino. Il prezzo mostrato è quello del
+ * prodotto selezionato: entra nel prezzo unitario della riga come
+ * (prezzo candela + prezzo ingredienti scelti), poi moltiplicato per la
+ * quantità. La scelta è singola per categoria, come nella select usata in
+ * precedenza: la lista viene ri-renderizzata a ogni cambiamento, quindi resta
+ * spuntata solo la scelta corrente (o il default automatico della ricetta).
  */
 function ingredientOptionHtml(recipe, product, selectedId) {
     const checked = Number(selectedId) === Number(product.id);
+    const priceLabel = (product.price !== null && product.price !== undefined)
+        ? `<span class="ing-option-price">${esc(fmtEur(Number(product.price)))}</span>`
+        : '';
 
     return `
         <label class="ing-option ${checked ? 'selected' : ''}">
             <input type="checkbox" class="ing-check" data-recipe-id="${recipe.id}" value="${product.id}" ${checked ? 'checked' : ''}>
             <span class="ing-option-name">${esc(product.name)}</span>
+            ${priceLabel}
         </label>
     `;
 }
@@ -515,6 +619,7 @@ function addConfiguredProductToCart() {
             key: state.nextKey++,
             product_id: configProductId,
             qnt: finalQnt,
+            price: productById(configProductId)?.price ?? null,
             selections,
         });
     }
@@ -663,7 +768,14 @@ function resolveIngredientNames(productId, userSelections, excluded, depth, acc)
         if (selectedProduct && hasRecipe(selectedProduct)) {
             resolveIngredientNames(selectedProduct.id, userSelections, [...excluded, selectedProduct.id], depth + 1, acc);
         } else if (selectedProduct) {
-            if (!acc.includes(selectedProduct.name)) acc.push(selectedProduct.name);
+            if (!acc.includes(selectedProduct.name)) {
+                // Prezzo fisso di listino dell'ingrediente, mostrato com'è
+                // (nessuna moltiplicazione per quantità)
+                const priceLabel = (selectedProduct.price !== null && selectedProduct.price !== undefined)
+                    ? ` (${fmtEur(Number(selectedProduct.price))})`
+                    : '';
+                acc.push(selectedProduct.name + priceLabel);
+            }
         }
     }
 }
@@ -672,6 +784,44 @@ function ingredientNamesForItem(item) {
     const acc = [];
     resolveIngredientNames(item.product_id, item.selections || {}, [Number(item.product_id)], 0, acc);
     return acc;
+}
+
+/**
+ * Somma dei prezzi degli ingredienti scelti per una riga di carrello.
+ * Considera solo le materie prime (prodotti senza ricetta), cioè le stesse
+ * voci mostrate nel riepilogo "Ingredienti": così i semi-lavorati e i loro
+ * componenti non vengono conteggiati due volte.
+ */
+function ingredientsTotalForItem(item) {
+    const seen = new Set();
+    let total = 0;
+
+    collectSelections(item).forEach((detail) => {
+        const product = productById(detail.product_id);
+        if (!product || hasRecipe(product)) return;
+        if (seen.has(product.id)) return;
+        seen.add(product.id);
+
+        if (product.price !== null && product.price !== undefined) {
+            total += Number(product.price);
+        }
+    });
+
+    return round2(total);
+}
+
+/**
+ * Prezzo unitario di una riga: prezzo candela + prezzo ingredienti scelti.
+ * Restituisce null se né il prodotto né gli ingredienti hanno un prezzo.
+ */
+function unitPriceForItem(item) {
+    const product = productById(item.product_id);
+    const basePrice = item.price ?? product?.price ?? null;
+    const ingredientsTotal = ingredientsTotalForItem(item);
+
+    if ((basePrice === null || basePrice === undefined) && ingredientsTotal <= 0) return null;
+
+    return round2(Number(basePrice || 0) + ingredientsTotal);
 }
 // ============================================================
 // Validazione e salvataggio (un unico JSON a POST /api/orders)
@@ -710,11 +860,17 @@ function buildPayload() {
         order_date: orderDate,
         products: state.cart.map((item) => {
             const product = productById(item.product_id);
+            const price = item.price ?? product?.price ?? null;
             return {
                 product_id: item.product_id,
                 qnt: round2(parseQnt(item.qnt)),
                 unit_of_measure_id: product?.unit_of_measure_id,
-                details: collectSelections(item),
+                price: price !== null && price !== undefined ? round2(Number(price)) : null,
+                details: collectSelections(item).map((d) => {
+                    const detailProduct = productById(d.product_id);
+                    const detailPrice = detailProduct?.price ?? null;
+                    return { ...d, price: detailPrice !== null && detailPrice !== undefined ? round2(Number(detailPrice)) : null };
+                }),
             };
         }),
     };
@@ -805,14 +961,17 @@ function initEvents() {
     document.getElementById('sheet-qnt-minus').addEventListener('click', () => {
         const input = document.getElementById('sheet-qnt-input');
         input.value = round2(Math.max(1, parseQnt(input.value) - 1));
+        renderSheetPrice();
     });
     document.getElementById('sheet-qnt-plus').addEventListener('click', () => {
         const input = document.getElementById('sheet-qnt-input');
         input.value = round2(parseQnt(input.value) + 1);
+        renderSheetPrice();
     });
     document.getElementById('sheet-qnt-input').addEventListener('change', (event) => {
         const v = parseQnt(event.target.value);
         event.target.value = round2(v > 0 ? v : 1);
+        renderSheetPrice();
     });
 
     // Vista 2: spunta/rimuove una materia prima → aggiorna gli annidamenti

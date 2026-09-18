@@ -81,6 +81,7 @@
             <div class="bottom-total">
                 <span class="bottom-total-label">Totale</span>
                 <strong id="order-total">0</strong>
+                <span id="order-total-qnt" class="bottom-total-sub hidden"></span>
             </div>
             <button type="button" id="save-order-btn" class="btn btn-primary btn-lg">Salva Ordine</button>
         </footer>
@@ -112,6 +113,8 @@
                             <button type="button" class="step-btn step-plus" id="sheet-qnt-plus" aria-label="Aumenta">+</button>
                         </div>
                     </div>
+
+                    <p class="sheet-price-line" id="sheet-price-line" hidden></p>
 
                     <p class="sheet-config-hint">Scegli una materia prima per ogni categoria</p>
                     <div class="ing-list" id="sheet-ing-list"></div>

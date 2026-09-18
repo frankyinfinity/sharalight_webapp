@@ -112,6 +112,11 @@ function renderOrderCard(order) {
                     <span class="order-card-label">Quantità</span>
                     <span>${formatQnt(order.qnt ?? 0)}</span>
                 </div>
+                ${order.price > 0 ? `
+                <div class="order-card-row order-card-row-total">
+                    <span class="order-card-label">Totale</span>
+                    <span><strong>${escapeHtml(formatQnt(order.price))} €</strong></span>
+                </div>` : ''}
             </div>
         </article>
     `;

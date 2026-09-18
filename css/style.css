@@ -819,6 +819,34 @@ select.invalid {
     text-overflow: ellipsis;
 }
 
+.cart-item-price {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+.cart-item-price strong {
+    color: var(--primary-dark);
+}
+
+.ing-option-price {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    white-space: nowrap;
+}
+
+.sheet-price-line {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 8px 0 0;
+}
+
+.sheet-price-line strong {
+    color: var(--primary-dark);
+}
+
 .stepper {
     display: flex;
     align-items: center;
@@ -1207,6 +1235,14 @@ select.invalid {
     margin-top: 2px;
 }
 
+.sheet-item-price {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin-top: 4px;
+}
+
 .sheet-item-ingredients {
     display: block;
     font-size: 11px;
@@ -1260,6 +1296,15 @@ select.invalid {
     font-weight: 800;
     color: var(--primary-dark);
     line-height: 1.1;
+}
+
+.bottom-total-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.order-card-row-total strong {
+    color: var(--primary-dark);
 }
 
 .bottom-bar .btn {

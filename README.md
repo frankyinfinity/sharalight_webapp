@@ -71,17 +71,37 @@ Gli stati interni nel pannello di amministrazione Laravel non sono modificati.
      quindi lo stesso prodotto può essere aggiunto più volte con ingredienti
      diversi.
 3. Per ogni prodotto si aprono gli **ingredienti**: una **lista con checkbox**
-   per ogni categoria (scelta singola, come la select del backend). La materia
-   prima è preselezionata in automatico (prodotto abilitato nella ricetta
-   oppure primo disponibile della categoria); se la materia prima scelta è un
+   per ogni categoria (scelta singola, come la select del backend). Le materie
+   prime proposte sono **filtrate dalla ricetta**: ogni riga di ricetta
+   (`recipe_details`) abilita solo alcuni prodotti della categoria (es. per la
+   categoria *Aromi* solo gli oli previsti da quel prodotto) e in lista
+   compaiono **solo quelli**; se la ricetta non abilita nessun prodotto la
+   categoria resta libera e vengono proposti tutti i prodotti della categoria.
+   Unica eccezione: la **scelta già salvata** (bozza o riga di carrello in
+   modifica) resta in lista e spuntata anche se non più abilitata, così non si
+   perde silenziosamente la configurazione. La materia prima è preselezionata
+   in automatico (primo prodotto abilitato nella ricetta, altrimenti primo
+   disponibile della categoria); se la materia prima scelta è un
    **semi-lavorato**, vengono mostrate le liste annidate delle sue ricette.
-4. Al salvataggio la webapp calcola le quantità derivate (inclusi i
+   Tra gli ingredienti il **prezzo di listino è visibile solo per le materie
+   prime** (prodotti senza ricetta): un semi-lavorato o un prodotto finito può
+   comparire come ingrediente (es. la *Candela Piccola* dentro la *Candela
+   Piccola con Busta*), ma il suo prezzo non è un costo ingrediente e quindi
+   non viene né mostrato né sommato.
+4. Il prezzo è sempre spiegato con la formula
+   **(prezzo prodotto + ingredienti scelti) × quantità**, mostrata sia sotto la
+   lista ingredienti (prima di aggiungere) sia nella riga del carrello — dove
+   gli ingredienti nel riepilogo (`Ingredienti: …`) sono le sole materie prime,
+   con il loro prezzo di listino. La formula si aggiorna a ogni cambio di
+   quantità (stepper o digitazione) o di ingredienti, insieme al totale in
+   basso.
+5. Al salvataggio la webapp calcola le quantità derivate (inclusi i
    semi-lavorati annidati e le conversioni U.M.).
-5. Tutta la composizione avviene **in locale** (bozza salvata in
+6. Tutta la composizione avviene **in locale** (bozza salvata in
    `localStorage`, chiave `shara_light_order_draft`): nessuna chiamata
    intermedia al server (fuorché l'autocomplete degli indirizzi, che passa
    dal backend).
-6. Al salvataggio viene inviato **un unico JSON** a `POST /api/orders`
+7. Al salvataggio viene inviato **un unico JSON** a `POST /api/orders`
    (dati consegna + coordinate opzionali `lat`/`lng` + prodotti + dettagli
    ingredienti calcolati). Il backend
    crea l'ordine direttamente nello stato **`products_defined`**

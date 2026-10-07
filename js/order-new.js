@@ -62,6 +62,16 @@ const productsByCategory = (categoryId) => CATALOG.products.filter((p) => p.prod
 const hasRecipe = (product) => product && (product.type === 'semi_finished' || product.type === 'finished');
 
 /**
+ * Materia prima ai fini dei PREZZI: prodotto senza ricetta (`raw_material`).
+ * È l'unico tipo di cui si mostra il prezzo (nella lista ingredienti e nel
+ * riepilogo del carrello) e l'unico conteggiato nel totale ingredienti: i
+ * semi-lavorati e i prodotti finiti hanno una ricetta e un proprio prezzo di
+ * listino, quindi non vengono esposti/sommati come ingredienti (evita doppi
+ * conteggi).
+ */
+const isRawMaterial = (product) => !!product && !hasRecipe(product);
+
+/**
  * Sottotitolo compatto di un prodotto: categoria + unità di misura.
  * Sostituisce l'icona emoji della categoria, mantenendo l'informazione.
  */
@@ -234,18 +244,8 @@ function renderCartItem(item) {
         : '';
 
     // Prezzo riga: (prezzo candela + ingredienti scelti) × quantità
-    const qnt = parseQnt(item.qnt) || 0;
-    const ingredientsTotal = ingredientsTotalForItem(item);
-    const unitPrice = unitPriceForItem(item);
-    let priceLine = '';
-
-    if (unitPrice !== null) {
-        const basePrice = round2(unitPrice - ingredientsTotal);
-        const unitLabel = ingredientsTotal > 0
-            ? `(${fmtEur(basePrice)} + ${fmtEur(ingredientsTotal)})`
-            : fmtEur(basePrice);
-        priceLine = `<span class="cart-item-price">${esc(unitLabel)} × ${esc(fmt(qnt))} = <strong>${esc(fmtEur(unitPrice * qnt))}</strong></span>`;
-    }
+    const priceInner = cartItemPriceHtml(item);
+    const priceLine = priceInner ? `<span class="cart-item-price">${priceInner}</span>` : '';
 
     return `
         <article class="cart-item" data-key="${item.key}">
@@ -265,6 +265,67 @@ function renderCartItem(item) {
             <button type="button" class="cart-item-remove" data-key="${item.key}" aria-label="Rimuovi">✕</button>
         </article>
     `;
+}
+
+/**
+ * Formula che spiega il prezzo di una riga di carrello (parte interna del
+ * blocco prezzo): (prezzo candela + ingredienti scelti) × quantità.
+ * Ritorna '' quando né il prodotto né gli ingredienti hanno un prezzo.
+ *
+ * È usata sia dal render completo della riga (`renderCartItem`) sia
+ * dall'aggiornamento in place (`updateItemPriceLine`): i due percorsi devono
+ * produrre la stessa stringa, così la formula mostrata non può divergere
+ * dal totale.
+ */
+function cartItemPriceHtml(item) {
+    const unitPrice = unitPriceForItem(item);
+    if (unitPrice === null) return '';
+
+    const qnt = parseQnt(item.qnt) || 0;
+    const ingredientsTotal = ingredientsTotalForItem(item);
+    const basePrice = round2(unitPrice - ingredientsTotal);
+    const unitLabel = ingredientsTotal > 0
+        ? `(${fmtEur(basePrice)} + ${fmtEur(ingredientsTotal)})`
+        : fmtEur(basePrice);
+
+    return `${esc(unitLabel)} × ${esc(fmt(qnt))} = <strong>${esc(fmtEur(unitPrice * qnt))}</strong>`;
+}
+
+/**
+ * Aggiorna SOLO la formula del prezzo di una riga già disegnata.
+ *
+ * Viene chiamata da stepper e digitazione della quantità: la riga non viene
+ * ricreata, così l'input resta a fuoco mentre si digita, ma la formula (che
+ * contiene la quantità) non resta quella precedente. Se la riga era nata
+ * senza blocco prezzo e ora i prezzi esistono, il blocco viene creato.
+ */
+function updateItemPriceLine(key) {
+    const item = itemByKey(key);
+    if (!item) return;
+
+    const card = document.querySelector(`.cart-item[data-key="${key}"]`);
+    if (!card) return;
+
+    const priceInner = cartItemPriceHtml(item);
+    const priceEl = card.querySelector('.cart-item-price');
+
+    if (!priceInner) {
+        if (priceEl) priceEl.remove();
+        return;
+    }
+
+    if (priceEl) {
+        priceEl.innerHTML = priceInner;
+        return;
+    }
+
+    const infoEl = card.querySelector('.cart-item-info');
+    if (infoEl) {
+        const span = document.createElement('span');
+        span.className = 'cart-item-price';
+        span.innerHTML = priceInner;
+        infoEl.appendChild(span);
+    }
 }
 
 function renderTotal() {
@@ -507,9 +568,10 @@ function ingredientRowsHtml(productId, excluded, depth) {
 
     return recipesByProduct(productId).map((recipe) => {
         const selectedId = selectedIngredientForRecipe(recipe, excluded);
-        const available = productsByCategory(recipe.product_category_id)
-            .filter((p) => !excluded.includes(p.id))
-            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        // Materie prime proposte filtrate dalla ricetta: solo i prodotti
+        // abilitati in recipe_details (se la ricetta non ne abilita nessuno
+        // la categoria resta libera e vengono proposti tutti i prodotti).
+        const available = availableIngredientsForRecipe(recipe, excluded, selectedId);
 
         const titleId = `ing-cat-${recipe.id}`;
         const options = available.length
@@ -538,17 +600,22 @@ function ingredientRowsHtml(productId, excluded, depth) {
 }
 
 /**
- * Una voce della lista ingredienti: checkbox (stilizzata in CSS) + nome della
- * materia prima + prezzo fisso di listino. Il prezzo mostrato è quello del
- * prodotto selezionato: entra nel prezzo unitario della riga come
- * (prezzo candela + prezzo ingredienti scelti), poi moltiplicato per la
- * quantità. La scelta è singola per categoria, come nella select usata in
- * precedenza: la lista viene ri-renderizzata a ogni cambiamento, quindi resta
- * spuntata solo la scelta corrente (o il default automatico della ricetta).
+ * Una voce della lista ingredienti: checkbox (stilizzata in CSS) + nome del
+ * prodotto + prezzo fisso di listino.
+ *
+ * Il prezzo è mostrato SOLO per le materie prime (prodotti senza ricetta):
+ * i semi-lavorati e i prodotti finiti possono comparire come ingredienti
+ * (es. la candela Piccola dentro la candela con busta) ma il loro prezzo di
+ * listino non è un costo ingrediente, quindi non viene esposto qui — e non
+ * entra nemmeno nella formula del prezzo.
+ *
+ * La scelta è singola per categoria, come nella select usata in precedenza:
+ * la lista viene ri-renderizzata a ogni cambiamento, quindi resta spuntata
+ * solo la scelta corrente (o il default automatico della ricetta).
  */
 function ingredientOptionHtml(recipe, product, selectedId) {
     const checked = Number(selectedId) === Number(product.id);
-    const priceLabel = (product.price !== null && product.price !== undefined)
+    const priceLabel = isRawMaterial(product) && product.price !== null && product.price !== undefined
         ? `<span class="ing-option-price">${esc(fmtEur(Number(product.price)))}</span>`
         : '';
 
@@ -573,17 +640,60 @@ function selectedIngredientForRecipe(recipe, excluded) {
 }
 
 /**
- * Default automatico: prodotto abilitato esplicitamente nella ricetta
- * (recipe_details) oppure primo disponibile della categoria.
+ * Materie prime proponibili per una ricetta (lista guidata dalla ricetta).
+ *
+ * `recipe_details` elenca i prodotti abilitati per la categoria della ricetta
+ * (es. per la categoria "Aromi" la ricetta può abilitare solo alcuni aromi):
+ * se l'elenco non è vuoto vengono proposti solo quelli, se è vuoto la
+ * categoria è libera e vengono proposti tutti i suoi prodotti.
+ *
+ * `selectedId` è la scelta già salvata: anche se non più abilitata resta in
+ * lista (e risulta spuntata), così una riga di carrello o una bozza vecchia
+ * non perde silenziosamente la configurazione. `excludedIds` esclude i
+ * prodotti già usati nei livelli superiori (annidamento semi-lavorati).
+ *
+ * @param {object} recipe
+ * @param {number[]} [excludedIds]
+ * @param {number|string|null} [selectedId]
+ * @returns {object[]} prodotti disponibili, ordinati per nome
  */
-function autoSelectForRecipe(recipe, excludedIds) {
-    const allowed = recipe.detail_product_ids || [];
-    for (const pid of allowed) {
-        if (!excludedIds.includes(Number(pid))) return Number(pid);
+function availableIngredientsForRecipe(recipe, excludedIds = [], selectedId = null) {
+    const excluded = (excludedIds || []).map(Number);
+    const allowed = (recipe.detail_product_ids || []).map(Number);
+
+    let candidates = productsByCategory(recipe.product_category_id);
+
+    if (allowed.length > 0) {
+        candidates = candidates.filter((p) => allowed.includes(Number(p.id)));
+
+        const current = selectedId === null || selectedId === undefined ? null : Number(selectedId);
+        if (current !== null && !allowed.includes(current) && !excluded.includes(current)) {
+            const extra = productById(current);
+            if (extra) candidates = [...candidates, extra];
+        }
     }
-    const candidates = productsByCategory(recipe.product_category_id)
-        .filter((p) => !excludedIds.includes(p.id))
+
+    return candidates
+        .filter((p) => !excluded.includes(Number(p.id)))
         .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+}
+
+/**
+ * Default automatico: primo prodotto abilitato dalla ricetta
+ * (recipe_details) oppure, se la ricetta non ne abilita nessuno, primo
+ * prodotto disponibile della categoria.
+ */
+function autoSelectForRecipe(recipe, excludedIds = []) {
+    const excluded = (excludedIds || []).map(Number);
+    const allowed = (recipe.detail_product_ids || []).map(Number);
+
+    for (const pid of allowed) {
+        if (excluded.includes(pid)) continue;
+        const product = productById(pid);
+        if (product && !excluded.includes(Number(product.id))) return Number(product.id);
+    }
+
+    const candidates = availableIngredientsForRecipe(recipe, excluded, null);
     return candidates[0] ? candidates[0].id : null;
 }
 
@@ -642,6 +752,7 @@ function changeQty(key, delta) {
     if (!item) return;
     item.qnt = round2(Math.max(1, parseQnt(item.qnt) + delta));
     updateQtyField(key);
+    updateItemPriceLine(key);   // la formula contiene la quantità → va riscritta
     renderTotal();
     persistDraft();
 }
@@ -652,6 +763,7 @@ function commitQty(input) {
     const value = parseQnt(input.value);
     item.qnt = round2(value > 0 ? value : 1);
     input.value = item.qnt;
+    updateItemPriceLine(input.dataset.key);
     renderTotal();
     persistDraft();
 }
@@ -767,9 +879,9 @@ function resolveIngredientNames(productId, userSelections, excluded, depth, acc)
 
         if (selectedProduct && hasRecipe(selectedProduct)) {
             resolveIngredientNames(selectedProduct.id, userSelections, [...excluded, selectedProduct.id], depth + 1, acc);
-        } else if (selectedProduct) {
+        } else if (isRawMaterial(selectedProduct)) {
             if (!acc.includes(selectedProduct.name)) {
-                // Prezzo fisso di listino dell'ingrediente, mostrato com'è
+                // Prezzo fisso di listino della materia prima, mostrato com'è
                 // (nessuna moltiplicazione per quantità)
                 const priceLabel = (selectedProduct.price !== null && selectedProduct.price !== undefined)
                     ? ` (${fmtEur(Number(selectedProduct.price))})`
@@ -789,8 +901,8 @@ function ingredientNamesForItem(item) {
 /**
  * Somma dei prezzi degli ingredienti scelti per una riga di carrello.
  * Considera solo le materie prime (prodotti senza ricetta), cioè le stesse
- * voci mostrate nel riepilogo "Ingredienti": così i semi-lavorati e i loro
- * componenti non vengono conteggiati due volte.
+ * voci di cui la lista ingredienti mostra il prezzo: così i semi-lavorati e i
+ * loro componenti non vengono conteggiati due volte.
  */
 function ingredientsTotalForItem(item) {
     const seen = new Set();
@@ -798,7 +910,7 @@ function ingredientsTotalForItem(item) {
 
     collectSelections(item).forEach((detail) => {
         const product = productById(detail.product_id);
-        if (!product || hasRecipe(product)) return;
+        if (!isRawMaterial(product)) return;
         if (seen.has(product.id)) return;
         seen.add(product.id);
 
@@ -891,17 +1003,33 @@ async function saveOrder() {
     const payload = buildPayload();
     const btn = document.getElementById('save-order-btn');
     btn.disabled = true;
-    btn.textContent = 'Salvataggio…';
+    btn.textContent = 'Creazione ordine…';
 
     try {
-        await apiRequest('/orders', { method: 'POST', body: payload, auth: true });
+        // 1. Crea l'ordine
+        const orderResponse = await apiRequest('/orders', { method: 'POST', body: payload, auth: true });
+        const orderId = orderResponse.order.id;
 
-        clearDraft();
-        state.cart = [];
-        renderAll();
+        btn.textContent = 'Preparazione pagamento…';
 
-        showAlert('Ordine salvato con successo!', 'success');
-        setTimeout(() => { window.location.href = 'orders.html'; }, 900);
+        // 2. Crea il pagamento PayPal
+        const paymentResponse = await apiRequest('/payments/create', {
+            method: 'POST',
+            body: { order_id: orderId },
+            auth: true
+        });
+
+        if (!paymentResponse.success || !paymentResponse.approval_url) {
+            throw new Error('Errore nella creazione del pagamento PayPal.');
+        }
+
+        // 3. Salva l'ID del pagamento per il redirect dopo PayPal
+        sessionStorage.setItem('pending_payment_id', paymentResponse.payment_id);
+        sessionStorage.setItem('pending_order_id', orderId);
+
+        // 4. Reindirizza a PayPal per l'approvazione
+        window.location.href = paymentResponse.approval_url;
+
     } catch (err) {
         btn.disabled = false;
         btn.textContent = 'Salva Ordine';

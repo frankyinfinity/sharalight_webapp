@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shara Light — Pagamento Completato</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <main class="app-shell" aria-labelledby="page-title">
+        <header class="app-header">
+            <div class="app-brand">
+                <span class="logo">✓</span>
+                <span id="page-title">Pagamento Completato</span>
+            </div>
+        </header>
+
+        <section class="app-content">
+            <div id="alert" class="alert alert-error hidden" role="alert"></div>
+
+            <div class="panel panel-center">
+                <div class="success-icon">✓</div>
+                <h2 class="panel-title">Pagamento completato!</h2>
+                <p class="panel-sub">Il tuo ordine è stato confermato e pagato con successo.</p>
+
+                <div id="payment-details" class="payment-details hidden">
+                    <p><strong>Ordine #<span id="order-progressive"></span></strong></p>
+                    <p>Importo pagato: <strong id="payment-amount"></strong></p>
+                </div>
+
+                <div class="spinner" id="spinner"></div>
+            </div>
+        </section>
+
+        <footer class="bottom-bar">
+            <button type="button" id="go-to-orders" class="btn btn-primary btn-lg hidden">Vai ai tuoi ordini</button>
+        </footer>
+    </main>
+
+    <script src="js/api.js"></script>
+    <script src="js/payment-success.js"></script>
+</body>
+</html>
